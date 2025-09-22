@@ -1,138 +1,46 @@
+# bot_webhook.py
+import logging
 from flask import Flask, request
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
+WEBHOOK_PATH = "/webhook"
+
+logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
+bot = Bot(TOKEN)
 
-ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
-GLUE_DATA = {"881": {"volume": 209, "weight": 284}, "882": {"volume": 209, "weight": 319}}
-
+# ======= دستورات ربات =======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
+    keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data="fill_info")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "سلام، به ربات یونکس خوش آمدید.\nجهت محاسبه متریال مصرفی شیشه 2جداره، اطلاعات را تکمیل کنید.",
+        "سلام! ربات یونکس فعال است.\nجهت محاسبه متریال مصرفی دکمه را بزنید.",
         reply_markup=reply_markup
     )
 
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if query.data == 'fill_info':
-        await query.message.reply_text("1- محیط کل شیشه ها را وارد کنید (متر):")
-        return ENV
-    elif query.data in ["881", "882"]:
-        context.user_data['glue_choice'] = query.data
-        await show_results(update, context)
-        return ConversationHandler.END
+    await query.message.reply_text(f"شما دکمه {query.data} را زدید.")
 
-async def get_env(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        context.user_data['env'] = float(update.message.text)
-        await update.message.reply_text("2- مساحت شیشه ها را وارد کنید (مترمربع):")
-        return AREA
-    except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
-        return ENV
+# ======= اپلیکیشن تلگرام =======
+application = ApplicationBuilder().token(TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CallbackQueryHandler(button_handler))
 
-async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        context.user_data['area'] = float(update.message.text)
-        await update.message.reply_text("3- تعداد کل شیشه ها را وارد کنید:")
-        return COUNT
-    except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
-        return AREA
-
-async def get_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        context.user_data['count'] = int(update.message.text)
-        await update.message.reply_text("4- ضخامت اسپیسر را وارد کنید (میلیمتر):")
-        return THICKNESS
-    except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
-        return COUNT
-
-async def get_thickness(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        context.user_data['thickness'] = float(update.message.text)
-        await update.message.reply_text("5- عمق چسب زنی را وارد کنید (میلیمتر):")
-        return DEPTH
-    except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
-        return THICKNESS
-
-async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        context.user_data['depth'] = float(update.message.text)
-        keyboard = [[InlineKeyboardButton("چسب 881", callback_data='881')],
-                    [InlineKeyboardButton("چسب 882", callback_data='882')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
-        return GLUE_CHOICE
-    except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
-        return DEPTH
-
-async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = context.user_data
-    env = data['env']
-    area = data['area']
-    count = data['count']
-    thickness = data['thickness']
-    depth = data['depth']
-    glue = data['glue_choice']
-
-    volume_glue = (env * thickness * depth) / 1000
-    glue_info = GLUE_DATA[glue]
-    weight_glue = (volume_glue / glue_info['volume']) * glue_info['weight']
-
-    butyl = (env * 2 * 5.5) / 1000
-    desiccant = (env * 3.5 * thickness) / 1000
-    spacer = ((count * 4 * depth) / 100) - env
-
-    await update.callback_query.message.reply_text(
-        f"✅ نتایج محاسبه شده:\n"
-        f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
-        f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
-        f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
-        f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
-        f"5- اسپیسر مصرفی: {spacer:.2f} متر"
-    )
-
-# لغو
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ عملیات لغو شد.")
-    return ConversationHandler.END
-
-# ساخت اپلیکیشن
-app_telegram = ApplicationBuilder().token(TOKEN).build()
-
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
-    states={
-        ENV: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_env)],
-        AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_area)],
-        COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_count)],
-        THICKNESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_thickness)],
-        DEPTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_depth)],
-        GLUE_CHOICE: [CallbackQueryHandler(button, pattern='^(881|882)$')]
-    },
-    fallbacks=[CommandHandler('cancel', cancel)],
-    allow_reentry=True
-)
-
-app_telegram.add_handler(conv_handler)
-
-# وبهوک Flask
-flask_app = Flask(__name__)
-
-@flask_app.route("/webhook", methods=["POST"])
+# ======= وبهوک =======
+@app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), app_telegram.bot)
-    app_telegram.process_update(update)
+    data = request.get_json(force=True)
+    update = Update.de_json(data, bot)
+    application.update_queue.put_nowait(update)
     return "OK"
 
+# ======= اجرا =======
 if __name__ == "__main__":
-    flask_app.run(host="0.0.0.0", port=5000)
+    # روی Render با gunicorn اجرا شود:
+    # gunicorn bot_webhook:app
+    app.run(host="0.0.0.0", port=5000)
