@@ -1,9 +1,9 @@
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-import os
 
-TOKEN = os.environ.get("BOT_TOKEN")
+# توکن ربات به‌صورت مستقیم
+TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 
 app = Flask(__name__)
 application = ApplicationBuilder().token(TOKEN).build()
