@@ -1,119 +1,92 @@
-#!/usr/bin/env python3
-"""
-Unix Glass Calculation Telegram Bot
-پشتیبانی از Webhook برای Render
-"""
-
-import logging
 from flask import Flask, request
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler,
-    ConversationHandler, ContextTypes, filters
-)
-import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram.ext import Dispatcher, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, Filters, CallbackContext
 
-# ======= توکن ربات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-
-# ======= Logging =======
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# ======= مراحل ورودی =======
-ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
-
-# ======= ثابت‌ها برای چسب =======
-GLUE_DATA = {
-    "881": {"volume": 209, "weight": 284},
-    "882": {"volume": 209, "weight": 319}
-}
-
-# ======= Flask App =======
-flask_app = Flask(__name__)
-
-# ======= Telegram Bot App =======
-app = ApplicationBuilder().token(TOKEN).build()
+app = Flask(__name__)
 bot = Bot(TOKEN)
+dispatcher = Dispatcher(bot, None, workers=0)
 
-# ======= شروع ربات =======
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# مراحل ورودی
+ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
+GLUE_DATA = {"881": {"volume": 209, "weight": 284}, "882": {"volume": 209, "weight": 319}}
+
+# دستور start
+def start(update: Update, context: CallbackContext):
     keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "سلام، به ربات یونکس خوش آمدید\n"
-        "جهت محاسبه متریال مصرفی شیشه 2جداره، اطلاعات را تکمیل کنید.",
+    update.message.reply_text(
+        "سلام، به ربات یونکس خوش آمدید.\nجهت محاسبه متریال مصرفی شیشه 2جداره، اطلاعات را تکمیل کنید.",
         reply_markup=reply_markup
     )
 
-# ======= دکمه‌ها =======
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+dispatcher.add_handler(CommandHandler("start", start))
+
+# دکمه‌ها
+def button(update: Update, context: CallbackContext):
     query = update.callback_query
-    await query.answer()
+    query.answer()
     if query.data == 'fill_info':
-        await query.message.reply_text("1- محیط کل شیشه ها را وارد کنید (متر):")
+        query.message.reply_text("1- محیط کل شیشه ها را وارد کنید (متر):")
         return ENV
     elif query.data in ["881", "882"]:
         context.user_data['glue_choice'] = query.data
-        await show_results(update, context)
+        show_results(update, context)
         return ConversationHandler.END
 
-# ======= گرفتن ورودی‌ها =======
-async def get_env(update: Update, context: ContextTypes.DEFAULT_TYPE):
+dispatcher.add_handler(CallbackQueryHandler(button))
+
+# ورودی‌ها
+def get_env(update: Update, context: CallbackContext):
     try:
         context.user_data['env'] = float(update.message.text)
-        await update.message.reply_text("2- مساحت شیشه ها را وارد کنید (مترمربع):")
+        update.message.reply_text("2- مساحت شیشه ها را وارد کنید (مترمربع):")
         return AREA
     except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
         return ENV
 
-async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_area(update: Update, context: CallbackContext):
     try:
         context.user_data['area'] = float(update.message.text)
-        await update.message.reply_text("3- تعداد کل شیشه ها را وارد کنید:")
+        update.message.reply_text("3- تعداد کل شیشه ها را وارد کنید:")
         return COUNT
     except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
         return AREA
 
-async def get_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_count(update: Update, context: CallbackContext):
     try:
         context.user_data['count'] = int(update.message.text)
-        await update.message.reply_text("4- ضخامت اسپیسر را وارد کنید (میلیمتر):")
+        update.message.reply_text("4- ضخامت اسپیسر را وارد کنید (میلیمتر):")
         return THICKNESS
     except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
         return COUNT
 
-async def get_thickness(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_thickness(update: Update, context: CallbackContext):
     try:
         context.user_data['thickness'] = float(update.message.text)
-        await update.message.reply_text("5- عمق چسب زنی را وارد کنید (میلیمتر):")
+        update.message.reply_text("5- عمق چسب زنی را وارد کنید (میلیمتر):")
         return DEPTH
     except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
         return THICKNESS
 
-async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_depth(update: Update, context: CallbackContext):
     try:
         context.user_data['depth'] = float(update.message.text)
-        keyboard = [
-            [InlineKeyboardButton("چسب 881", callback_data='881')],
-            [InlineKeyboardButton("چسب 882", callback_data='882')]
-        ]
+        keyboard = [[InlineKeyboardButton("چسب 881", callback_data='881')],
+                    [InlineKeyboardButton("چسب 882", callback_data='882')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
+        update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
         return GLUE_CHOICE
     except ValueError:
-        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
         return DEPTH
 
-# ======= محاسبه و نمایش خروجی‌ها =======
-async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# محاسبه و نمایش
+def show_results(update: Update, context: CallbackContext):
     data = context.user_data
     env = data['env']
     area = data['area']
@@ -125,11 +98,12 @@ async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     volume_glue = (env * thickness * depth) / 1000
     glue_info = GLUE_DATA[glue]
     weight_glue = (volume_glue / glue_info['volume']) * glue_info['weight']
+
     butyl = (env * 2 * 5.5) / 1000
     desiccant = (env * 3.5 * thickness) / 1000
     spacer = ((count * 4 * depth) / 100) - env
 
-    await update.callback_query.message.reply_text(
+    update.callback_query.message.reply_text(
         f"✅ نتایج محاسبه شده:\n"
         f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
         f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
@@ -138,36 +112,12 @@ async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"5- اسپیسر مصرفی: {spacer:.2f} متر"
     )
 
-# ======= لغو =======
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ عملیات لغو شد.")
-    return ConversationHandler.END
-
-# ======= Conversation Handler =======
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
-    states={
-        ENV: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_env)],
-        AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_area)],
-        COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_count)],
-        THICKNESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_thickness)],
-        DEPTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_depth)],
-        GLUE_CHOICE: [CallbackQueryHandler(button, pattern='^(881|882)$')]
-    },
-    fallbacks=[CommandHandler('cancel', cancel)],
-    allow_reentry=True
-)
-
-app.add_handler(conv_handler)
-
-# ======= Flask Webhook Route =======
-@flask_app.route('/webhook', methods=['POST'])
+# وبهوک
+@app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    asyncio.run(app.update_queue.put(update))
-    return 'ok'
+    dispatcher.process_update(update)
+    return "OK"
 
-# ======= Run Flask =======
 if __name__ == "__main__":
-    print("✅ ربات یونکس با Webhook آماده است...")
-    flask_app.run(host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=5000)
