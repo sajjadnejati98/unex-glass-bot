@@ -2,7 +2,7 @@ from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-# توکن ربات به‌صورت مستقیم
+# توکن رباتت
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 
 app = Flask(__name__)
