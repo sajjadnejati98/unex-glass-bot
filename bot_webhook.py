@@ -1,37 +1,32 @@
-import asyncio
 from flask import Flask, request
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Bot, Update
+from telegram.ext import Dispatcher, CommandHandler, MessageHandler, filters
 
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com/webhook"
-PORT = 5000
 
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
-application = Application.builder().token(TOKEN).build()
+dispatcher = Dispatcher(bot=bot, update_queue=None, use_context=True)
 
-# ======== دستورات ربات ========
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("ربات یونکس فعال شد!")
+def start(update, context):
+    update.message.reply_text("سلام! ربات فعال شد ✅")
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"پیام شما: {update.message.text}")
+def echo(update, context):
+    update.message.reply_text(f"پیام شما: {update.message.text}")
 
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-# ======== وبهوک Flask ========
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    asyncio.run(application.process_update(update))
-    return "OK", 200
+    dispatcher.process_update(update)
+    return "ok"
 
-# ======== اجرای ربات ========
 if __name__ == "__main__":
-    # ست کردن وبهوک بصورت async
-    asyncio.run(bot.set_webhook(WEBHOOK_URL))
+    bot.delete_webhook()
+    bot.set_webhook(WEBHOOK_URL)
     print(f"Webhook ست شد: {WEBHOOK_URL}")
-    print(f"ربات آماده روی پورت {PORT}")
-    app.run(host="0.0.0.0", port=PORT)
+    print("ربات آماده روی پورت 5000")
+    app.run(host="0.0.0.0", port=5000)
