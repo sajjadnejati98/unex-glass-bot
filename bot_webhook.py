@@ -1,20 +1,36 @@
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler
 
-# توکن رباتت
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
+WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
 
 app = Flask(__name__)
-application = ApplicationBuilder().token(TOKEN).build()
+application = Application.builder().token(TOKEN).build()
 
-@app.route('/webhook', methods=['POST'])
+# دستور /start
+async def start(update: Update, context):
+    await update.message.reply_text("ربات روشنه ✅")
+
+application.add_handler(CommandHandler("start", start))
+
+# مسیر وبهوک
+@app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    application.process_update(update)
-    return 'OK'
+    data = request.get_json(force=True)
+    update = Update.de_json(data, application.bot)
+    application.update_queue.put_nowait(update)
+    return "ok"
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"شما گفتید: {update.message.text}")
+if __name__ == "__main__":
+    import asyncio
 
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    async def run():
+        # ست کردن وبهوک روی سرور شما
+        await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()  # برای تست لوکال
+        await asyncio.Event().wait()  # برنامه همیشه روشن بمونه
+
+    asyncio.run(run())
