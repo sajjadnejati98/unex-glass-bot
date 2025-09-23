@@ -1,45 +1,51 @@
 import os
 import asyncio
-from threading import Thread
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from flask import Flask, request
-from telegram import Bot, Update
-from telegram.ext import ApplicationBuilder, CommandHandler
 
+# -----------------------
+# تنظیمات ربات
+# -----------------------
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = f"https://unix-glass-bot-1.onrender.com/{TOKEN}"  # دامنه شما جایگذاری شد
+WEBHOOK_URL = f"https://unix-glass-bot-1.onrender.com/{TOKEN}"
 
+if not TOKEN:
+    raise ValueError("توکن ربات خالیه!")
+
+# -----------------------
+# Flask App
+# -----------------------
 app = Flask(__name__)
-bot = Bot(TOKEN)
+
+# -----------------------
+# Telegram Bot
+# -----------------------
 application = ApplicationBuilder().token(TOKEN).build()
 
-# دستور /start
-async def start(update: Update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("ربات فعال شد!")
 
 application.add_handler(CommandHandler("start", start))
 
-# وبهوک
+# -----------------------
+# Webhook Route
+# -----------------------
 @app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
+async def webhook():
     data = request.get_json(force=True)
-    update = Update.de_json(data, bot)
-    application.update_queue.put(update)
+    update = Update.de_json(data, application.bot)
+    await application.update_queue.put(update)
     return "ok"
 
-# اجرای Flask در یک thread جداگانه
-def run_flask():
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-async def main():
-    # ست کردن وبهوک
+# -----------------------
+# ست کردن وبهوک
+# -----------------------
+async def set_webhook():
     await application.bot.set_webhook(WEBHOOK_URL)
-    # اجرای Flask
-    Thread(target=run_flask).start()
-    # اجرای اپلیکیشن تلگرام
-    await application.initialize()
-    await application.start()
-    await application.updater.stop()  # چون فقط وبهوک استفاده می‌کنیم
-    await application.idle()
 
+# -----------------------
+# Main
+# -----------------------
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(set_webhook())
