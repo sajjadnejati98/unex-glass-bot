@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 import asyncio
 import logging
@@ -144,9 +143,9 @@ conv_handler = ConversationHandler(
 application.add_handler(conv_handler)
 
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    asyncio.run(application.process_update(update))
+async def webhook():
+    update = Update.de_json(await request.get_json(force=True), bot)
+    await application.process_update(update)
     return "OK"
 
 if __name__ == "__main__":
@@ -154,7 +153,7 @@ if __name__ == "__main__":
         await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
         await application.initialize()
         await application.start()
+        await asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
         await asyncio.Event().wait()
 
     asyncio.run(main())
-```
