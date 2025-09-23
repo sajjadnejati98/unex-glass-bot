@@ -1,51 +1,40 @@
 import os
 import asyncio
-from telegram import Update
+from telegram import Bot, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from flask import Flask, request
 
-# -----------------------
-# تنظیمات ربات
-# -----------------------
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = f"https://unix-glass-bot-1.onrender.com/{TOKEN}"
-
 if not TOKEN:
     raise ValueError("توکن ربات خالیه!")
 
-# -----------------------
-# Flask App
-# -----------------------
 app = Flask(__name__)
-
-# -----------------------
-# Telegram Bot
-# -----------------------
+bot = Bot(TOKEN)
 application = ApplicationBuilder().token(TOKEN).build()
 
+# دستورات ربات
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("ربات فعال شد!")
 
 application.add_handler(CommandHandler("start", start))
 
-# -----------------------
-# Webhook Route
-# -----------------------
+# وبهوک
 @app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     data = request.get_json(force=True)
-    update = Update.de_json(data, application.bot)
-    await application.update_queue.put(update)
+    update = Update.de_json(data, bot)
+    application.update_queue.put_nowait(update)
     return "ok"
 
-# -----------------------
-# ست کردن وبهوک
-# -----------------------
-async def set_webhook():
-    await application.bot.set_webhook(WEBHOOK_URL)
+async def main():
+    webhook_url = f"https://unix-glass-bot-1.onrender.com/{TOKEN}"
+    await application.bot.set_webhook(webhook_url)
+    # اجرای Flask داخل asyncio
+    from hypercorn.asyncio import serve
+    from hypercorn.config import Config
+    config = Config()
+    config.bind = [f"0.0.0.0:{os.environ.get('PORT', 5000)}"]
+    await serve(app, config)
 
-# -----------------------
-# Main
-# -----------------------
 if __name__ == "__main__":
-    asyncio.run(set_webhook())
+    asyncio.run(main())
