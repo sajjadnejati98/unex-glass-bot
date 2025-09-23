@@ -8,11 +8,9 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, ContextTypes, filters
 )
 
-# ======= توکن ربات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"  # لینک رندر خودت
+WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
 
-# ======= ثابت‌ها =======
 GLUE_DATA = {
     "881": {"volume": 209, "weight": 284},
     "882": {"volume": 209, "weight": 319}
@@ -20,26 +18,20 @@ GLUE_DATA = {
 
 ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
 
-# ======= Logging =======
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ======= Flask App =======
 app_flask = Flask(__name__)
 bot = Bot(TOKEN)
 application = ApplicationBuilder().token(TOKEN).build()
 
-# ======= Handlers =======
+# ===== Handlers =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "ربات روشنه ✅\nسلام ، به ربات هوشمند یونکس خوش آمدید\n"
         "جهت محاسبه متریال مصرفی شیشه دو جداره، اطلاعات را تکمیل کنید.",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,8 +88,7 @@ async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("چسب 881", callback_data='881')],
             [InlineKeyboardButton("چسب 882", callback_data='882')]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
+        await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
         return GLUE_CHOICE
     except ValueError:
         await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
@@ -105,11 +96,8 @@ async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = context.user_data
-    env = data['env']
-    area = data['area']
-    count = data['count']
-    thickness = data['thickness']
-    depth = data['depth']
+    env, area, count = data['env'], data['area'], data['count']
+    thickness, depth = data['thickness'], data['depth']
     glue = data['glue_choice']
 
     volume_glue = (env * thickness * depth) / 1000
@@ -132,7 +120,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ عملیات لغو شد.")
     return ConversationHandler.END
 
-# ======= Conversation Handler =======
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
     states={
@@ -148,23 +135,22 @@ conv_handler = ConversationHandler(
 )
 application.add_handler(conv_handler)
 
-# ======= Flask Webhook Route =======
+# ===== Flask Webhook Route =====
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
     application.process_update(update)
     return "OK"
 
-# ======= اجرای همزمان Flask و تلگرام =======
+# ===== اجرای همزمان Flask و تلگرام =====
 if __name__ == "__main__":
     async def main():
         await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
         await application.initialize()
         await application.start()
         await asyncio.gather(
-            application.updater.start_polling(),  # تست لوکال همزمان
             asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
         )
-        await asyncio.Event().wait()  # همیشه روشن بمونه
+        await asyncio.Event().wait()
 
     asyncio.run(main())
