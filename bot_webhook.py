@@ -1,39 +1,35 @@
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from flask import Flask, request
-from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    MessageHandler, ConversationHandler, ContextTypes, filters
-)
-import asyncio
+import os
 
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
-
-ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
-GLUE_DATA = {"881": {"volume":209, "weight":284}, "882":{"volume":209, "weight":319}}
+PORT = int(os.environ.get("PORT", 5000))
 
 app = Flask(__name__)
-bot = Bot(TOKEN)
+
+# دستورات ربات
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("ربات فعال است ✅")
+
+# ساخت اپلیکیشن تلگرام
 application = ApplicationBuilder().token(TOKEN).build()
+application.add_handler(CommandHandler("start", start))
 
-# Handlers مشابه کد شما ...
-
+# وبهوک Flask
 @app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
-    data = request.get_json(force=True)
-    update = Update.de_json(data, bot)
-    await application.process_update(update)
-    return "OK"
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.update_queue.put(update)
+    return "ok"
 
+# روت ساده
 @app.route("/")
 def index():
-    return "ربات روشن است ✅"
-
-async def main():
-    await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-    await application.initialize()
-    await application.start()
-    await asyncio.Event().wait()
+    return "ربات فعال است ✅", 200
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # ست کردن وبهوک
+    application.bot.set_webhook(f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TOKEN}")
+    # اجرا روی پورت داینامیک Render
+    app.run(host="0.0.0.0", port=PORT)
