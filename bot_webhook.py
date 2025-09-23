@@ -1,35 +1,24 @@
+import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from flask import Flask, request
-import os
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-PORT = int(os.environ.get("PORT", 5000))
+PORT = int(__import__("os").environ.get("PORT", 5000))
+HOST = __import__("os").environ.get("RENDER_EXTERNAL_HOSTNAME")
 
-app = Flask(__name__)
-
-# دستورات ربات
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("ربات فعال است ✅")
 
-# ساخت اپلیکیشن تلگرام
-application = ApplicationBuilder().token(TOKEN).build()
-application.add_handler(CommandHandler("start", start))
-
-# وبهوک Flask
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    application.update_queue.put(update)
-    return "ok"
-
-# روت ساده
-@app.route("/")
-def index():
-    return "ربات فعال است ✅", 200
+async def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    await app.bot.set_webhook(f"https://{HOST}/{TOKEN}")
+    # اجرای ربات روی وبهوک
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_path=f"/{TOKEN}"
+    )
 
 if __name__ == "__main__":
-    # ست کردن وبهوک
-    application.bot.set_webhook(f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TOKEN}")
-    # اجرا روی پورت داینامیک Render
-    app.run(host="0.0.0.0", port=PORT)
+    asyncio.run(main())
