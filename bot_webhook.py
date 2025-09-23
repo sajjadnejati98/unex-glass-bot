@@ -1,23 +1,30 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
+from telegram import Bot
+from telegram.ext import ApplicationBuilder, CommandHandler
+from flask import Flask, request
 
-TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
+TOKEN = os.getenv("TOKEN")  # حتماً توکنت رو از محیط بذار
+if not TOKEN:
+    raise ValueError("توکن ربات خالیه!")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("ربات فعال است ✅")
+app = Flask(__name__)
+bot = Bot(TOKEN)
+application = ApplicationBuilder().token(TOKEN).build()
+
+async def start(update, context):
+    await update.message.reply_text("ربات فعال شد!")
+
+application.add_handler(CommandHandler("start", start))
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    data = request.get_json(force=True)
+    update = telegram.Update.de_json(data, bot)
+    application.update_queue.put(update)
+    return "ok"
 
 if __name__ == "__main__":
-    # ساخت اپلیکیشن
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    # اضافه کردن دستور /start
-    app.add_handler(CommandHandler("start", start))
-
-    # اجرای وبهوک
-    webhook_url = f"https://unix-glass-bot-1.onrender.com/{TOKEN}"
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        webhook_url=webhook_url
-    )
+    # webhook URL باید واقعی باشه
+    webhook_url = f"https://YOUR_DOMAIN/{TOKEN}"
+    application.bot.set_webhook(webhook_url)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
