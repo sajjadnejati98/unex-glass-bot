@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+
 import logging
+import asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
@@ -118,24 +120,19 @@ async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     desiccant = (env * 3.5 * thickness) / 1000
     spacer = ((count * 4 * depth) / 100) - env
 
+    text = (
+        f"✅ نتایج محاسبه شده:\n"
+        f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
+        f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
+        f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
+        f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
+        f"5- اسپیسر مصرفی: {spacer:.2f} متر"
+    )
+
     if update.callback_query:
-        await update.callback_query.message.reply_text(
-            f"✅ نتایج محاسبه شده:\n"
-            f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
-            f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
-            f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
-            f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
-            f"5- اسپیسر مصرفی: {spacer:.2f} متر"
-        )
+        await update.callback_query.message.reply_text(text)
     else:
-        await update.message.reply_text(
-            f"✅ نتایج محاسبه شده:\n"
-            f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
-            f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
-            f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
-            f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
-            f"5- اسپیسر مصرفی: {spacer:.2f} متر"
-        )
+        await update.message.reply_text(text)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ عملیات لغو شد.")
@@ -162,8 +159,9 @@ application.add_handler(conv_handler)
 def webhook():
     if request.method == "HEAD":
         return "OK", 200
+
     update = Update.de_json(request.get_json(force=True), bot)
-    application.process_update_sync(update)  # روش همگام برای Flask
+    asyncio.run(application.process_update(update))  # اصلاح: اجرا در event loop
     return "OK"
 
 # ======= مسیر مانیتورینگ =======
@@ -174,6 +172,6 @@ def ping():
 # ======= اجرای Flask و Webhook =======
 if __name__ == "__main__":
     # حذف webhook قبلی و ست کردن webhook جدید
-    bot.delete_webhook()
-    bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+    asyncio.run(bot.delete_webhook())
+    asyncio.run(bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}"))
     app_flask.run(host="0.0.0.0", port=5000)
