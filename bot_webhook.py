@@ -22,7 +22,7 @@ ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
 
 # ======= Logging =======
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ application = ApplicationBuilder().token(TOKEN).build()
 
 # ======= Handlers =======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data="fill_info")]]
+    keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "ربات روشنه ✅\nسلام ، به ربات هوشمند یونکس خوش آمدید\n"
@@ -45,17 +45,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if query.data == "fill_info":
+    if query.data == 'fill_info':
         await query.message.reply_text("1- محیط کل شیشه ها را وارد کنید (متر):")
         return ENV
     elif query.data in ["881", "882"]:
-        context.user_data["glue_choice"] = query.data
+        context.user_data['glue_choice'] = query.data
         await show_results(update, context)
         return ConversationHandler.END
 
 async def get_env(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.user_data["env"] = float(update.message.text)
+        context.user_data['env'] = float(update.message.text)
         await update.message.reply_text("2- مساحت شیشه ها را وارد کنید (مترمربع):")
         return AREA
     except ValueError:
@@ -64,7 +64,7 @@ async def get_env(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.user_data["area"] = float(update.message.text)
+        context.user_data['area'] = float(update.message.text)
         await update.message.reply_text("3- تعداد کل شیشه ها را وارد کنید:")
         return COUNT
     except ValueError:
@@ -73,7 +73,7 @@ async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.user_data["count"] = int(update.message.text)
+        context.user_data['count'] = int(update.message.text)
         await update.message.reply_text("4- ضخامت اسپیسر را وارد کنید (میلیمتر):")
         return THICKNESS
     except ValueError:
@@ -82,7 +82,7 @@ async def get_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_thickness(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.user_data["thickness"] = float(update.message.text)
+        context.user_data['thickness'] = float(update.message.text)
         await update.message.reply_text("5- عمق چسب زنی را وارد کنید (میلیمتر):")
         return DEPTH
     except ValueError:
@@ -91,10 +91,10 @@ async def get_thickness(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.user_data["depth"] = float(update.message.text)
+        context.user_data['depth'] = float(update.message.text)
         keyboard = [
-            [InlineKeyboardButton("چسب 881", callback_data="881")],
-            [InlineKeyboardButton("چسب 882", callback_data="882")]
+            [InlineKeyboardButton("چسب 881", callback_data='881')],
+            [InlineKeyboardButton("چسب 882", callback_data='882')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
@@ -105,16 +105,16 @@ async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = context.user_data
-    env = data["env"]
-    area = data["area"]
-    count = data["count"]
-    thickness = data["thickness"]
-    depth = data["depth"]
-    glue = data["glue_choice"]
+    env = data['env']
+    area = data['area']
+    count = data['count']
+    thickness = data['thickness']
+    depth = data['depth']
+    glue = data['glue_choice']
 
     volume_glue = (env * thickness * depth) / 1000
     glue_info = GLUE_DATA[glue]
-    weight_glue = (volume_glue / glue_info["volume"]) * glue_info["weight"]
+    weight_glue = (volume_glue / glue_info['volume']) * glue_info['weight']
     butyl = (env * 2 * 5.5) / 1000
     desiccant = (env * 3.5 * thickness) / 1000
     spacer = ((count * 4 * depth) / 100) - env
@@ -134,33 +134,37 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ======= Conversation Handler =======
 conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start), CallbackQueryHandler(button)],
+    entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
     states={
         ENV: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_env)],
         AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_area)],
         COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_count)],
         THICKNESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_thickness)],
         DEPTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_depth)],
-        GLUE_CHOICE: [CallbackQueryHandler(button, pattern="^(881|882)$")]
+        GLUE_CHOICE: [CallbackQueryHandler(button, pattern='^(881|882)$')]
     },
-    fallbacks=[CommandHandler("cancel", cancel)],
+    fallbacks=[CommandHandler('cancel', cancel)],
     allow_reentry=True
 )
 application.add_handler(conv_handler)
 
 # ======= Flask Webhook Route =======
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    await application.process_update(update)
-    return "OK", 200
+    application.process_update(update)
+    return "OK"
 
-# ======= اجرای Flask + Webhook =======
+# ======= اجرای همزمان Flask و تلگرام =======
 if __name__ == "__main__":
     async def main():
+        await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
         await application.initialize()
         await application.start()
-        await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-        app_flask.run(host="0.0.0.0", port=5000)
+        await asyncio.gather(
+            application.updater.start_polling(),
+            asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
+        )
+        await asyncio.Event().wait()
 
     asyncio.run(main())
