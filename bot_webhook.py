@@ -149,11 +149,18 @@ conv_handler = ConversationHandler(
 application.add_handler(conv_handler)
 
 # ======= Flask Webhook Route =======
-@app_flask.route(f"/{TOKEN}", methods=["POST"])
+@app_flask.route(f"/{TOKEN}", methods=["POST", "HEAD"])
 def webhook():
+    if request.method == "HEAD":
+        return "OK", 200
     update = Update.de_json(request.get_json(force=True), bot)
     application.process_update(update)
     return "OK"
+
+# ======= مسیر مانیتورینگ =======
+@app_flask.route("/ping")
+def ping():
+    return "OK", 200
 
 # ======= اجرای همزمان Flask و تلگرام =======
 if __name__ == "__main__":
@@ -162,7 +169,6 @@ if __name__ == "__main__":
         await application.initialize()
         await application.start()
         await asyncio.gather(
-            application.updater.start_polling(),
             asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
         )
         await asyncio.Event().wait()
