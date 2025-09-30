@@ -10,7 +10,7 @@ from telegram.ext import (
 
 # ======= توکن ربات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"  # لینک رندر خودت
+WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
 
 # ======= ثابت‌ها =======
 GLUE_DATA = {
@@ -162,9 +162,9 @@ if __name__ == "__main__":
         await application.initialize()
         await application.start()
         await asyncio.gather(
-            application.updater.start_polling(),  # تست لوکال همزمان
+            application.updater.start_polling(),
             asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
         )
-        await asyncio.Event().wait()  # همیشه روشن بمونه
+        await asyncio.Event().wait()
 
     asyncio.run(main())
