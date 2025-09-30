@@ -1,4 +1,3 @@
-# bot_webhook.py
 import logging
 import asyncio
 from flask import Flask, request
@@ -8,6 +7,7 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, ContextTypes, filters
 )
 
+# ======= تنظیمات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
 
@@ -18,19 +18,21 @@ GLUE_DATA = {
 
 ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
 
+# ======= لاگینگ =======
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Flask app
+# ======= Flask App =======
 app_flask = Flask(__name__)
 
-# Telegram app
+# ======= Telegram Application =======
 application = ApplicationBuilder().token(TOKEN).build()
 
-# --- Handlers (همان توابع قبلی بدون تغییر) ---
+# ======= Handlers =======
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -130,7 +132,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ عملیات لغو شد.")
     return ConversationHandler.END
 
-# ConversationHandler
+# ======= Conversation Handler =======
 conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start),
@@ -150,7 +152,8 @@ conv_handler = ConversationHandler(
 
 application.add_handler(conv_handler)
 
-# Flask routes
+# ======= Flask Routes =======
+
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
