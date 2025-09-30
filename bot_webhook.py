@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import asyncio
 import logging
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
@@ -119,14 +118,24 @@ async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     desiccant = (env * 3.5 * thickness) / 1000
     spacer = ((count * 4 * depth) / 100) - env
 
-    await update.callback_query.message.reply_text(
-        f"✅ نتایج محاسبه شده:\n"
-        f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
-        f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
-        f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
-        f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
-        f"5- اسپیسر مصرفی: {spacer:.2f} متر"
-    )
+    if update.callback_query:
+        await update.callback_query.message.reply_text(
+            f"✅ نتایج محاسبه شده:\n"
+            f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
+            f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
+            f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
+            f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
+            f"5- اسپیسر مصرفی: {spacer:.2f} متر"
+        )
+    else:
+        await update.message.reply_text(
+            f"✅ نتایج محاسبه شده:\n"
+            f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
+            f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
+            f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
+            f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
+            f"5- اسپیسر مصرفی: {spacer:.2f} متر"
+        )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ عملیات لغو شد.")
@@ -154,7 +163,7 @@ def webhook():
     if request.method == "HEAD":
         return "OK", 200
     update = Update.de_json(request.get_json(force=True), bot)
-    asyncio.create_task(application.process_update(update))  # <-- اصلاح: با create_task اجرا شد
+    application.process_update_sync(update)  # روش همگام برای Flask
     return "OK"
 
 # ======= مسیر مانیتورینگ =======
@@ -162,15 +171,9 @@ def webhook():
 def ping():
     return "OK", 200
 
-# ======= اجرای همزمان Flask و تلگرام =======
+# ======= اجرای Flask و Webhook =======
 if __name__ == "__main__":
-    async def main():
-        await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-        await application.initialize()
-        await application.start()
-        await asyncio.gather(
-            asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
-        )
-        await asyncio.Event().wait()
-
-    asyncio.run(main())
+    # حذف webhook قبلی و ست کردن webhook جدید
+    bot.delete_webhook()
+    bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+    app_flask.run(host="0.0.0.0", port=5000)
