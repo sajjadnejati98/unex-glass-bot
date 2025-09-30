@@ -154,7 +154,7 @@ def webhook():
     if request.method == "HEAD":
         return "OK", 200
     update = Update.de_json(request.get_json(force=True), bot)
-    application.process_update(update)
+    asyncio.create_task(application.process_update(update))  # <-- اصلاح: با create_task اجرا شد
     return "OK"
 
 # ======= مسیر مانیتورینگ =======
