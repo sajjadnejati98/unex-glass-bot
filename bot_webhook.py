@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-import asyncio
 import logging
+import asyncio
 from flask import Flask, request
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     CallbackQueryHandler, ConversationHandler, ContextTypes, filters
 )
 
-# ======= توکن ربات =======
+# ======= تنظیمات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
 
-# ======= ثابت‌ها =======
 GLUE_DATA = {
     "881": {"volume": 209, "weight": 284},
     "882": {"volume": 209, "weight": 319}
@@ -20,7 +19,7 @@ GLUE_DATA = {
 
 ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
 
-# ======= Logging =======
+# ======= لاگینگ =======
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -29,10 +28,12 @@ logger = logging.getLogger(__name__)
 
 # ======= Flask App =======
 app_flask = Flask(__name__)
-bot = Bot(TOKEN)
+
+# ======= راه‌اندازی Application =======
 application = ApplicationBuilder().token(TOKEN).build()
 
 # ======= Handlers =======
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -134,7 +135,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ======= Conversation Handler =======
 conv_handler = ConversationHandler(
-    entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
+    entry_points=[
+        CommandHandler('start', start),
+        CallbackQueryHandler(button, pattern='^fill_info$')
+    ],
     states={
         ENV: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_env)],
         AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_area)],
@@ -146,25 +150,19 @@ conv_handler = ConversationHandler(
     fallbacks=[CommandHandler('cancel', cancel)],
     allow_reentry=True
 )
+
 application.add_handler(conv_handler)
 
-# ======= Flask Webhook Route =======
+# ======= Flask Routes =======
+
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    application.process_update(update)
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    asyncio.run(application.update_queue.put(update))
     return "OK"
 
-# ======= اجرای همزمان Flask و تلگرام =======
-if __name__ == "__main__":
-    async def main():
-        await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-        await application.initialize()
-        await application.start()
-        await asyncio.gather(
-            application.updater.start_polling(),
-            asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
-        )
-        await asyncio.Event().wait()
+@app_flask.route("/", methods=["GET"])
+def home():
+    return "Unix Glass Bot is running! ✅"
 
-    asyncio.run(main())
+# توجه: هیچ کدی در if __name__ == "__main__" نیاز نیست چون gunicorn مستقیماً app_flask رو لود می‌کنه.
