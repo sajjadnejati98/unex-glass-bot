@@ -17,7 +17,6 @@ GLUE_DATA = {
     "881": {"volume": 209, "weight": 284},
     "882": {"volume": 209, "weight": 319}
 }
-
 ENV, AREA, COUNT, THICKNESS, DEPTH, GLUE_CHOICE = range(6)
 
 # ======= Logging =======
@@ -148,7 +147,11 @@ conv_handler = ConversationHandler(
 )
 application.add_handler(conv_handler)
 
-# ======= Flask Webhook Route =======
+# ======= Flask Routes =======
+@app_flask.route("/", methods=["GET"])
+def home():
+    return "Bot is alive ✅"   # برای پینگ UptimeRobot
+
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
@@ -161,10 +164,7 @@ if __name__ == "__main__":
         await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
         await application.initialize()
         await application.start()
-        await asyncio.gather(
-            application.updater.start_polling(),  # تست لوکال همزمان
-            asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
-        )
-        await asyncio.Event().wait()  # همیشه روشن بمونه
+        # حذف polling چون فقط webhook میخوای
+        await asyncio.to_thread(lambda: app_flask.run(host="0.0.0.0", port=5000))
 
     asyncio.run(main())
