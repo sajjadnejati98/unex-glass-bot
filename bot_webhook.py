@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # ======= Flask App =======
 app_flask = Flask(__name__)
 
-# ======= Telegram Application =======
+# ======= Telegram Application (بدون polling) =======
 application = ApplicationBuilder().token(TOKEN).build()
 
 # ======= Handlers =======
