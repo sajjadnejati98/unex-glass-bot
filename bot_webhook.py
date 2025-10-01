@@ -158,7 +158,6 @@ application.add_handler(conv_handler)
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    # استفاده از یک event loop جدید برای اجرای async
     import asyncio
     try:
         loop = asyncio.get_event_loop()
@@ -166,8 +165,9 @@ def webhook():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     
-    # اولین بار: initialize و start
     if not hasattr(app_flask, '_app_initialized'):
+        # Initialize both bot and application
+        loop.run_until_complete(bot.initialize())
         loop.run_until_complete(application.initialize())
         loop.run_until_complete(application.start())
         app_flask._app_initialized = True
