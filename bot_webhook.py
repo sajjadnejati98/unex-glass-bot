@@ -34,10 +34,106 @@ application = ApplicationBuilder().token(TOKEN).build()
 
 # ======= Handlers =======
 
-# ... (همان توابع start, button, get_env, ..., cancel بدون تغییر) ...
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton("تکمیل اطلاعات", callback_data='fill_info')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "ربات روشنه ✅\nسلام ، به ربات هوشمند یونکس خوش آمدید\n"
+        "جهت محاسبه متریال مصرفی شیشه دو جداره، اطلاعات را تکمیل کنید.",
+        reply_markup=reply_markup
+    )
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == 'fill_info':
+        await query.message.reply_text("1- محیط کل شیشه ها را وارد کنید (متر):")
+        return ENV
+    elif query.data in ["881", "882"]:
+        context.user_data['glue_choice'] = query.data
+        await show_results(update, context)
+        return ConversationHandler.END
+
+async def get_env(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data['env'] = float(update.message.text)
+        await update.message.reply_text("2- مساحت شیشه ها را وارد کنید (مترمربع):")
+        return AREA
+    except ValueError:
+        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        return ENV
+
+async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data['area'] = float(update.message.text)
+        await update.message.reply_text("3- تعداد کل شیشه ها را وارد کنید:")
+        return COUNT
+    except ValueError:
+        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        return AREA
+
+async def get_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data['count'] = int(update.message.text)
+        await update.message.reply_text("4- ضخامت اسپیسر را وارد کنید (میلیمتر):")
+        return THICKNESS
+    except ValueError:
+        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        return COUNT
+
+async def get_thickness(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data['thickness'] = float(update.message.text)
+        await update.message.reply_text("5- عمق چسب زنی را وارد کنید (میلیمتر):")
+        return DEPTH
+    except ValueError:
+        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        return THICKNESS
+
+async def get_depth(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data['depth'] = float(update.message.text)
+        keyboard = [
+            [InlineKeyboardButton("چسب 881", callback_data='881')],
+            [InlineKeyboardButton("چسب 882", callback_data='882')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text("چسب مصرفی خود را انتخاب کنید:", reply_markup=reply_markup)
+        return GLUE_CHOICE
+    except ValueError:
+        await update.message.reply_text("لطفاً عدد معتبر وارد کنید.")
+        return DEPTH
+
+async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = context.user_data
+    env = data['env']
+    area = data['area']
+    count = data['count']
+    thickness = data['thickness']
+    depth = data['depth']
+    glue = data['glue_choice']
+
+    volume_glue = (env * thickness * depth) / 1000
+    glue_info = GLUE_DATA[glue]
+    weight_glue = (volume_glue / glue_info['volume']) * glue_info['weight']
+    butyl = (env * 2 * 5.5) / 1000
+    desiccant = (env * 3.5 * thickness) / 1000
+    spacer = ((count * 4 * depth) / 100) - env
+
+    await update.callback_query.message.reply_text(
+        f"✅ نتایج محاسبه شده:\n"
+        f"1- حجم چسب مصرفی: {volume_glue:.2f} لیتر\n"
+        f"2- وزن چسب مصرفی: {weight_glue:.2f} کیلوگرم\n"
+        f"3- بوتیل مصرفی: {butyl:.2f} کیلوگرم\n"
+        f"4- رطوبت‌گیر مصرفی: {desiccant:.2f} کیلوگرم\n"
+        f"5- اسپیسر مصرفی: {spacer:.2f} متر"
+    )
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ عملیات لغو شد.")
+    return ConversationHandler.END
 
 # ======= Conversation Handler =======
-
 conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start),
@@ -68,20 +164,3 @@ def webhook():
 @app_flask.route("/", methods=["GET"])
 def home():
     return "Unix Glass Bot is running! ✅"
-
-# ======= فعال‌سازی application در اولین درخواست =======
-
-_started = False
-
-@app_flask.before_request
-def setup_application():
-    global _started
-    if not _started:
-        import threading
-        def run_app():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(application.initialize())
-            loop.run_until_complete(application.start())
-        threading.Thread(target=run_app, daemon=True).start()
-        _started = True
