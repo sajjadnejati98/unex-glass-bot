@@ -9,7 +9,7 @@ from telegram.ext import (
 
 # ======= تنظیمات =======
 TOKEN = "8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
-WEBHOOK_URL = "https://unix-glass-bot-1.onrender.com"
+WEBHOOK_URL = "https://unex-glass-bot.onrender.com/8208186251:AAGhImACKTeAa1pKT1cVSQEsqp0Vo2yk-2o"
 
 GLUE_DATA = {
     "881": {"volume": 209, "weight": 284},
