@@ -158,7 +158,7 @@ application.add_handler(conv_handler)
 @app_flask.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    application.process_update(update)
+    asyncio.run(application.process_update(update))
     return "OK"
 
 @app_flask.route("/", methods=["GET"])
