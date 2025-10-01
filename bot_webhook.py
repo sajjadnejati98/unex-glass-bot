@@ -34,7 +34,6 @@ application = ApplicationBuilder().token(TOKEN).build()
 
 # ======= وضعیت فعال‌سازی =======
 _initialized = False
-_init_lock = asyncio.Lock()
 
 async def initialize_application():
 global _initialized
